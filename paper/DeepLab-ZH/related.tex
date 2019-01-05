@@ -1,0 +1,174 @@
+\section{Related Work}
+%Following the introduction of semantic segmentation datasets \cite{msra,pascal} the first successful 
+Most of the successful semantic segmentation systems developed in the previous decade relied on hand-crafted features 
+combined with flat classifiers, such as Boosting \cite{TuB10,shotton2009textonboost}, Random Forests \cite{shotton2008semantic}, or Support Vector Machines \cite{FulkersonVS09}. Substantial improvements have been achieved
+ by incorporating richer information from context
+\cite{carreira2012semantic} 
+and structured prediction techniques \cite{he2004multiscale,ladicky2009associative,carreira2012cpmc,krahenbuhl2011efficient}, but
+the performance of these systems has always been compromised by the limited expressive power of the features.
+% were using 
+Over the past few years the breakthroughs of Deep Learning in image classification were quickly transferred to the semantic 
+segmentation task. Since this task involves both segmentation and classification, a central question is how to combine the two tasks. 
+%We organize 
+%the presentation of prior works according to whether they put the segmentation task before, in parallel with, or after classification.
+
+%Using the most 
+The first family of DCNN-based systems for semantic segmentation typically employs a cascade of
+bottom-up image segmentation, followed by DCNN-based region classification.
+For instance the bounding box proposals and masked regions delivered by
+\cite{arbelaez2014multiscale, Uijlings13} are used in \cite{girshick2014rcnn}
+and \cite{hariharan2014simultaneous}  as inputs to a DCNN to incorporate shape
+information into the classification process. Similarly, the authors of
+ \cite{mostajabi2014feedforward} rely on a superpixel representation.
+Even though these approaches can benefit from the sharp boundaries delivered by a  good segmentation,
+they also cannot recover from any of its errors. 
+
+
+The second family of works relies on using convolutionally computed DCNN
+features for dense image labeling, and couples them with segmentations that are obtained independently.
+Among the first have been
+\cite{farabet2013learning} who apply DCNNs at multiple image resolutions and
+then employ a segmentation tree to smooth the prediction results. More recently,
+\cite{hariharan2014hypercolumns} propose to use skip layers and concatenate the computed
+intermediate feature maps within the DCNNs for pixel classification. Further, \cite{dai2014convolutional}
+propose to pool the intermediate feature maps by region proposals. These works
+still employ segmentation algorithms that are decoupled from the DCNN
+classifier's results, thus risking commitment to premature decisions. 
+
+The third family of works uses DCNNs to directly provide dense category-level pixel labels, which makes it 
+possible to even discard segmentation altogether. 
+The segmentation-free approaches of
+\cite{long2014fully, eigen2014predicting} directly apply DCNNs to the whole
+image in a fully convolutional fashion, transforming the last fully connected
+layers of the DCNN into convolutional layers. In order to deal with the spatial
+localization issues outlined in the introduction, \cite{long2014fully} upsample
+and concatenate the scores from intermediate feature maps, while
+\cite{eigen2014predicting} refine the prediction result from coarse to fine by
+propagating the coarse results to another DCNN.
+Our work builds on  these works, and as described in the introduction 
+extends them by exerting control on the feature resolution, introducing multi-scale pooling techniques
+and integrating  the
+densely connected CRF of \cite{krahenbuhl2011efficient} on top of the DCNN. We
+show that this leads to significantly better segmentation results, especially
+along object boundaries. The combination of DCNN and CRF is of course not new
+but previous works only tried locally connected CRF models. Specifically,
+\cite{cogswell2014combining} use CRFs as a proposal mechanism for a DCNN-based
+reranking system, while \cite{farabet2013learning} treat superpixels as nodes
+for a local pairwise CRF and use graph-cuts for discrete inference. As such
+their models were limited by errors in superpixel computations or ignored
+long-range dependencies. Our approach instead treats every pixel as a CRF node
+receiving unary potentials by the DCNN. Crucially, the Gaussian CRF potentials
+in the fully connected CRF model of \cite{krahenbuhl2011efficient} that we adopt
+can capture long-range dependencies and at the same time the model is amenable
+to fast mean field inference. We note that mean field inference had been
+extensively studied for traditional image segmentation tasks
+\cite{geiger1991parallel, geiger1991common, kokkinos2008computational}, but
+these older models were typically limited to short-range connections. In
+independent work, \cite{bell2014material} use a very similar densely connected
+CRF model to refine the results of DCNN for the problem of material
+classification. However, the DCNN module of \cite{bell2014material} was only
+trained by sparse point supervision instead of dense supervision at every pixel.
+
+Since the first version of this work was made publicly available
+\cite{chen2014semantic}, the area of semantic segmentation has progressed
+drastically. Multiple groups have made important advances, significantly raising
+the bar on the PASCAL VOC 2012 semantic segmentation benchmark, as reflected to
+the high level of activity in the benchmark's
+leaderboard\footnote{\url{http://host.robots.ox.ac.uk:8080/leaderboard/displaylb.php?challengeid=11&compid=6}}
+\cite{papandreou2015weakly, zheng2015conditional, dai2015boxsup, noh2015learning,
+liu2015semantic, lin2015efficient, chen2015attention, chen2015semantic}.
+Interestingly, most top-performing methods have adopted one or both of the key
+ingredients of our DeepLab system: Atrous convolution for efficient dense
+feature extraction and refinement of the raw DCNN scores by means of a fully
+connected CRF. We outline below some of the most important and interesting advances.
+
+\newcommand{\mycomment}[1]{}
+\mycomment{
+	A key difference compared to \cite{long2014fully} lies in the way we produce
+	feature maps at the original image resolution: They use a sequence of
+	deconvolutional layers \cite{zeiler2014visualizing}, while we use a combination
+	of atrous convolution and bilinear interpolation, resulting in a significantly
+	simpler system that explicitly handles the signal downsampling issue, requires
+	fewer parameters, and is easier to train.
+}
+
+
+\emph{End-to-end training for structured prediction} has  more recently 
+been explored in several related works. 
+While we employ the CRF as a post-processing method,
+\cite{zheng2015conditional, chen2014learning, schwing2015fully, liu2015semantic,
+lin2015efficient} have successfully pursued joint learning of the DCNN and CRF.
+In particular, \cite{zheng2015conditional, schwing2015fully} unroll the CRF
+mean-field inference steps to convert the whole system into an end-to-end
+trainable feed-forward network, while \cite{liu2015semantic} approximates one
+iteration of the dense CRF mean field inference \cite{krahenbuhl2011efficient}
+by convolutional layers with learnable filters. Another fruitful direction
+pursued by \cite{lin2015efficient,chandra2016fast} is to learn the pairwise terms of a CRF
+via a DCNN, significantly improving performance at the cost of heavier
+computation. In a different direction, \cite{chen2015semantic} replace the
+bilateral filtering module used in mean field inference with a faster
+domain transform module \cite{GastalOliveira2011DomainTransform}, improving the speed and lowering the
+memory requirements of the overall system, while
+\cite{bertasius2015high, kokkinos2016pushing} combine semantic segmentation
+with edge detection.
+
+\emph{Weaker supervision} has been pursued in a number of papers, relaxing
+the assumption that pixel-level semantic annotations are available for the whole
+training set \cite{pinheiro2014weakly, papandreou2015weakly, pathakICCV15ccnn, hong2015decoupled},
+achieving significantly better results than weakly-supervised pre-DCNN systems
+such as \cite{vezhnevets2011weakly}. In another line of research,
+\cite{hariharan2014simultaneous, liang2015proposal} pursue instance segmentation, jointly tackling  object detection and semantic
+segmentation.
+
+What we call here \emph{atrous convolution} was originally developed for the efficient
+computation of the undecimated wavelet transform in the ``algorithme \`a trous''
+scheme of \cite{holschneider1989real}. We refer the interested reader to
+\cite{fowler2005redundant} for early references from the wavelet literature.
+Atrous convolution is also intimately related to the ``noble identities'' in
+multi-rate signal processing, which builds on the same interplay of input signal
+and filter sampling rates \cite{vaidyanathan1990multirate}. Atrous convolution
+is a term we first used in \cite{papandreou2014untangling}. The same operation
+was later called dilated convolution by \cite{yu2015multi}, a term they coined
+motivated by the fact that the operation corresponds to regular convolution
+with upsampled (or dilated in the terminology of \cite{holschneider1989real})
+filters. Various authors have used the same operation before for denser feature
+extraction in DCNNs \cite{giusti2013fast, sermanet2013overfeat, papandreou2014untangling}.
+Beyond mere resolution enhancement, atrous convolution allows us to enlarge the
+field of view of filters to incorporate larger context, which we have shown in
+\cite{chen2014semantic} to be beneficial. This approach has been pursued further
+by \cite{yu2015multi}, who employ a series of atrous convolutional layers with
+increasing rates to aggregate multiscale context. The atrous spatial pyramid
+pooling scheme proposed here to capture multiscale objects and context also
+employs multiple atrous convolutional layers with different sampling rates,
+which we however lay out in parallel instead of in serial.
+Interestingly, the atrous convolution technique has also been adopted for a broader set of  tasks, such as object detection
+ \cite{liu2015ssd,dai2016rfcn}, instance-level segmentation \cite{dai2016instance}, visual question answering \cite{chen2015abc}, and optical flow
+ \cite{sevilla2016optical}.
+
+We also show that, as expected, integrating into DeepLab more advanced image
+classification DCNNs such as the residual net of \cite{he2015deep} leads to
+better results. This has also been observed independently by \cite{wu2016high}.
+
+%% After the first version of our manuscript was made publicly available,
+%% it came to our attention that two other groups have independently
+%% and concurrently pursued a very similar direction, combining DCNNs and
+%% densely connected CRFs \cite{bell2014material,
+%%   zheng2015conditional}. There are several differences in technical aspects
+%% of the respective models. In terms of applications,
+%% \cite{bell2014material} focus on the problem of material
+%% classification. Similarly to us, \cite{zheng2015conditional} evaluate
+%% their system on the problem of semantic image segmentation but their
+%% results on the PASCAL VOC 2012 benchmark are somewhat inferior to
+%% ours. We refer the interested reader to these papers for different
+%% perspectives on the interplay of DCNNs and CRFs.
+
+
+%% Our model is mostly related to two fields, and the goal of this work is to combine the best from them.
+
+%% {\bf{Conditional Random Fields for segmentation: }} Many semantic segmentation methods rely on Conditional Random Fields (CRFs), which model the local interactions between pixels \cite{rother2004grabcut, shotton2009textonboost} or superpixels \cite{lucchi2011spatial} via the pairwise potential. Several works have been proposed to model the hierarchical dependency \cite{he2004multiscale, ladicky2009associative, lempitsky2011pylon} and the high-order potential (in addition to pairwise potential) \cite{delong2012fast, gonfaus2010harmony, kohli2009robust, krahenbuhl2011efficient}. Our model takes use of the efficient inference algorithm in fully connected CRF proposed by \cite{krahenbuhl2011efficient} for its powerful long range dependency. Note that mean field had been extensively studied for traditional image segmentation/edge detection tasks cite{geiger1991common, geiger1991parallel, kokkinos2008computational}, but \cite{krahenbuhl2011efficient} showed that it can be very efficient in the context of semantic segmentation.
+
+%% {\bf{Deep Convolutional Neural Network for segmentation: }} Most of the systems built on top of DCNN classify either a single object label for an entire image \cite{KrizhevskyNIPS2013, simonyan2014very, szegedy2014going}, or several object labels for bounding boxes within an image \cite{papandreou2014untangling, girshick2014rcnn}. Recently, there are several works that attemp to semantically segment an image with DCNN. \cite{girshick2014rcnn, hariharan2014simultaneous} take both bounding box proposals and masked regions as input to DCNN. The masked regions provide extra object shape informantion to the neural networks. These methods heavily depend on the region proposals \cite{arbelaez2014multiscale, Uijlings13}. 
+%% %Note that second order pooling \cite{carreira2012semantic} also assigns labels to regions proposals \cite{carreira2012cpmc}; however, hand-crafted features are employed. 
+%% \cite{farabet2013learning} apply DCNN to multi-resolution of the input image and employ a segmentation tree to smooth the prediction results. We notice that there are serveral concurrent works, which bear similarities to our proposed model. \cite{mostajabi2014feedforward} propose to combine the multi-scale cues extracted by DCNN (and some hand-crafted features) to label one superpixel. Similarly, their results depend on the superpixels, which may leak out the object boundaries, and the errors are difficult to recover. \cite{hariharan2014hypercolumns} propose to concatenate the computed inter-mediate feature maps within the DCNN for pixel classfication, and \cite{dai2014convolutional} propose to pool the inter-mediate feature maps by region proposals. Their models are two-step models, which depends on the accuracy of first step (\ie region proposals). On the other hand, our model is most similar to \cite{long2014fully, eigen2014predicting}, which directly apply DCNN to the whole image in sliding window fashion. The last fully connected layers within DCNN are replaced by convolutional layers. \cite{long2014fully} upsample and concatenate the scores from inter-mediate feature maps, while \cite{eigen2014predicting} refine the prediction result from coarse to fine by propagating the coarse results to another DCNN. 
+
+%% {\bf{Combine Graphical Model and DCNN: }} The main difference between our model and other state-of-the-art models is the combination of graphical models and DCNN. Other works that are similar to ours include \cite{cogswell2014combining}, which employ CRF to propose diverse region proposals \cite{yadollahpour2013discriminative} and extract features via DCNN, and \cite{chen2014learning} which efficiently blend inference and learning to jointly train DCNN and CRF. Our current model employs piecewise training, and jointly training is our next goal.
