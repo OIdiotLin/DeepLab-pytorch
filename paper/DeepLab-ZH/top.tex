@@ -541,7 +541,7 @@ pdfkeywords={Computer Society, IEEEtran, journal, LaTeX, paper,
 \usepackage{epsfig}
 \usepackage{epstopdf}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{multirow}
 \usepackage{subfigure}
 \usepackage{booktabs}
@@ -690,12 +690,20 @@ University. The first two authors contributed equally to this work.}
 % command as these need to go into the title area created by \maketitle.
 % As a general rule, do not put math, special symbols or citations
 % in the abstract or keywords.
+
 \IEEEtitleabstractindextext{%
+
+\begin{center}
+  
+译者：林会东~~~学号：201636665056
+\end{center}
+
 \input{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
 \begin{IEEEkeywords}
-Convolutional Neural Networks, Semantic Segmentation, Atrous Convolution, Conditional Random Fields.
+% Convolutional Neural Networks, Semantic Segmentation, Atrous Convolution, Conditional Random Fields.
+卷积神经网络, 语义分割, 空洞卷积, 条件随机场
 \end{IEEEkeywords}}
 
 
