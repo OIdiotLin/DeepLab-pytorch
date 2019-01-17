@@ -1,183 +1,55 @@
 \section{Methods}
 \label{sec:methods}
 
-\subsection{Atrous Convolution for Dense Feature Extraction and Field-of-View Enlargement}
+\subsection{用于提取密集特征和扩大感受野的空洞卷积}
 \label{sec:convnet-hole}
-The use of DCNNs for semantic segmentation, or other dense prediction tasks, has been shown to be
-simply and successfully addressed by deploying DCNNs in a fully convolutional fashion \cite{sermanet2013overfeat, long2014fully}.
- However, the repeated combination of max-pooling and striding
- at consecutive layers of these networks reduces significantly the spatial resolution of the
- resulting feature maps, typically by a factor of 32 across each direction in recent DCNNs.
- A partial remedy is to use `deconvolutional' layers as  in  \cite{long2014fully},
-which however requires additional memory and time.
- 
-We advocate instead the use of atrous convolution, originally developed for the efficient computation of the
-undecimated wavelet transform in the ``algorithme \`a trous'' scheme of
-\cite{holschneider1989real} and used before in the DCNN context by
-\cite{giusti2013fast, sermanet2013overfeat, papandreou2014untangling}.
-This algorithm allows us to compute the responses of any layer at any desirable resolution.
-It can be applied post-hoc, once a network has been trained, but can also be seamlessly integrated with training.
 
-Considering one-dimensional signals first, the output $y[i]$ of atrous convolution \footnote{We follow the
-standard practice in the DCNN literature and use non-mirrored filters in this
-definition.} of a 1-D input signal $x[i]$ with a filter $w[k]$ of length $K$ is
-defined as:
+DCNNs 用于语义分割或其他密集预测任务已被证明可以通过以完全卷积形式简单而成功地解决 \cite{sermanet2013overfeat, long2014fully}。然而，这些网络中最大池化层和跳跃层的重复组合显著地降低了所得特征图的分辨率，最近的 DCNNs 中通常降低了 32 倍。部分补救方法是使用 `反卷积' 层 \cite{long2014fully}，但这需要额外的时间与内存。 
+
+我们主张使用空洞卷积，最初是为了在 ``algorithme \`a trous'' 中高效计算未抽取的小波变换而开发的 \cite{holschneider1989real, giusti2013fast, sermanet2013overfeat, papandreou2014untangling}。该算法允许我们以任何所需的分辨率计算任何层的响应。一旦网络经过训练，它就可以在事后部署应用，也可以与训练无缝集成。
+
+先考虑一维信号，空洞卷积 \footnote{我们遵循 DCNN 文献中的标准实践，并在此定义中使用非镜像滤波器。} 的输入是 $x[i]$，输出是 $y[i]$，滤波器是长度为 $K$ 的 $w[k]$，定义如下：
 \begin{equation}
   y[i] = \sum_{k=1}^K x[i + r \cdot k] w[k].
 \end{equation}
-The \emph{rate} parameter $r$ corresponds to the stride with which we sample the
-input signal. Standard convolution is a special case for rate $r = 1$.
-See \figref{fig:hole} for illustration.
+上式中的 $r$ 是步长，与采样率有关。标准卷积是 $r=1$ 时的特例，参见 \figref{fig:hole}。
 
- \begin{figure}
+\begin{figure}
   \begin{tabular}{c}
-%  \includegraphics[width=0.5\linewidth]{fig/atrous2.pdf}
     \includegraphics[width=0.9\linewidth]{fig/atrous_fig1.pdf} \\
-    {\scriptsize (a) Sparse feature extraction} \\
+    {\scriptsize (a) 稀疏特征提取} \\
     \includegraphics[width=0.9\linewidth]{fig/atrous_fig2.pdf} \\
-    {\scriptsize (b) Dense feature extraction} \\
+    {\scriptsize (b) 密集特征提取} \\
   \end{tabular}
-  \caption{Illustration of atrous convolution in 1-D. (a) Sparse feature
-    extraction with standard convolution on a low resolution input feature map.
-    (b) Dense feature extraction with atrous convolution with rate $r = 2$,
-    applied on a high resolution input feature map.}
+  \caption{一维空洞卷积计算图示。(a) 在低分辨率输入特征图上使用标准卷积进行稀疏特征提取。
+    (b) 在高分辨率输入特征图上使用 $r=2$ 的空洞卷积进行密集特征提取。}
   \label{fig:hole}
 \end{figure}
 
-We illustrate the algorithm's operation in 2-D through a simple example in \figref{fig:hole2d}: Given an image, we 
-assume that we first have a downsampling operation that reduces the resolution by a factor of 2, and then perform  a 
-convolution with a  kernel - here, the vertical Gaussian derivative. If one  implants the resulting 
-feature map in the original image coordinates, we realize that we have obtained responses at only 1/4 of the image positions. 
-Instead, we can compute responses at all image positions 
-if we convolve the full resolution image with a filter `with holes', in which 
-we upsample the original filter by a
-factor of 2, and introduce zeros  in between filter values. 
-Although the effective filter size increases, we only need to take into account the
-non-zero filter values, hence both the number of filter parameters and the number of operations per position stay constant. 
-The resulting scheme allows us to easily and explicitly control the spatial resolution of neural
-network feature responses.
+我们通过 \figref{fig:hole2d} 中的一个简单示例来说明算法在二维输入上的操作：给定输入图像，我们假设首先进行下采样操作，将分辨率降低两倍，然后使用垂直高斯导数卷积核进行卷积运算。如果在原始图像坐标中植入生成的特征图，我们意识到仅在原始图像位置的 1/4 处获得了特征响应。相反，如果我们将原始分辨率图像与空洞卷积滤波器进行卷积，可以计算出所有图像位置的响应，其中我们将原始滤波器上采样两倍，并在滤波器值之间置入 0。虽然滤波器尺寸增加，但是仅仅只要计算非零的位置，因此滤波器参数的数量和每个位置的操作数量保持不变。此方案允许我们容易且明确地控制神经网络特征响应的分辨率。
 
 \begin{figure}
   \centering
-    \begin{tabular}{c}
-    	%  \includegraphics[width=0.5\linewidth]{fig/atrous2.pdf}
-    	\includegraphics[width=.99 \linewidth]{fig/atrous_slide_rate.pdf}
-    	\vspace{-.9cm}
-    \end{tabular}
-   \caption{Illustration of atrous convolution in 2-D. Top row: sparse feature
-   	extraction with standard convolution on a low resolution input feature map.
-   	Bottom row: Dense feature extraction with atrous convolution with rate $r = 2$,
-   	applied on a high resolution input feature map.}
-    \label{fig:hole2d}
-   \end{figure}
+  \begin{tabular}{c}
+   	\includegraphics[width=.99 \linewidth]{fig/atrous_slide_rate.pdf}
+   	\vspace{-.9cm}
+  \end{tabular}
+  \caption{二维空洞卷积计算图示。上图：在低分辨率输入特征图上使用标准卷积进行稀疏特征提取。下图：在高分辨率输入特征图上使用 $r=2$ 的空洞卷积进行密集特征提取。}\label{fig:hole2d}
+\end{figure}
 
-In the context of DCNNs one can use  atrous convolution in a chain of layers,
- effectively allowing us to compute the final DCNN network responses at an
-arbitrarily high resolution. For example, in order to double the spatial density
-of computed feature responses in the VGG-16 or ResNet-101 networks, we find the
-last pooling or convolutional layer that decreases resolution ('pool5' or 'conv5\_1'
-respectively), set its stride to 1 to avoid signal decimation, and replace all
-subsequent convolutional layers with atrous convolutional layers having rate
-$r = 2$. 
-Pushing this approach all the
-way through the network could allow us to compute feature responses at the original image
-resolution, but this ends up being too
-costly. We have adopted instead a hybrid approach that strikes a
-good efficiency/accuracy trade-off, using atrous convolution to increase by a
-factor of 4 the density of computed feature maps, followed by fast bilinear
-interpolation by an additional factor of 8 to
-recover feature maps at the original image resolution. Bilinear interpolation
-is sufficient in this setting because the class score maps (corresponding to
-log-probabilities) are quite smooth, as illustrated in
-\figref{fig:score-maps}. Unlike the deconvolutional approach adopted by
-\cite{long2014fully}, the proposed approach converts image classification
-networks into dense feature extractors without requiring learning any extra
-parameters, leading to faster DCNN training in practice. 
+在 DCNNs 中，我们可以使用空洞卷积层以任意分辨率计算最终的特征响应。例如，为了使 VGG-16 或 ResNet-101 网络中计算出的特征响应的分辨率加倍，我们将最后一个降低分辨率的池化层或卷积层（分别为 `pool5' 和 `conv5\_1'）的步长设为 1 避免信号抽取，并通过使用 $r=2$ 的空洞卷积层替换后续所有卷积层。通过这种方法我们可以以原始图像分辨率计算特征响应，但这成本略高。我们采用了一种混合方法，该方法可以实现良好的效率/准确性权衡，使用空洞卷积将计算特征图的分辨率增加 4 倍，然后通过额外因子 8 快速双线性插值来恢复特征图分辨率。双线性插值在此情境下表现足够好，因为分类得分图（对应于分类对数概率）非常平滑，如 \figref{fig:score-maps} 所示。与 \cite{long2014fully} 中的反卷积方法不同的是，我们提出的方法将图像分类网络转化为更为密集特征提取器，而无需学习任何额外的参数，从而在实践中实现更快的 DCNN 训练。
 
-Atrous convolution also allows us to arbitrarily enlarge the \emph{field-of-view} of
-filters at any DCNN layer.
-State-of-the-art DCNNs typically employ spatially small
-convolution kernels (typically \by{3}{3}) in order to keep both computation and
-number of parameters contained. Atrous convolution with rate $r$ introduces
-$r-1$ zeros between consecutive filter values, effectively enlarging the kernel
-size of a \by{k}{k} filter to $k_e = k + (k-1)(r-1)$ without increasing the
-number of parameters or the amount of computation. It thus offers an efficient
-mechanism to control the field-of-view and finds the best trade-off between
-accurate localization (small field-of-view) and context assimilation (large
-field-of-view). We have successfully experimented with this technique:
-Our DeepLab-LargeFOV model variant \cite{chen2014semantic} employs atrous
-convolution with rate $r = 12$ in VGG-16 `fc6' layer with significant
-performance gains, as detailed in Section~\ref{sec:experiments}.
+空洞卷积还允许我们在任何 DCNN 层上任意放大滤波器的 \textit{感受野}。最先进的 DCNN 通常使用较小的卷积核（通常是 \by{3}{3}），以便保证较少的参数量。而使用扩张率为 $r$ 的空洞卷积在连续的滤波值之间插入 $r-1$ 个 0，有效地将 \by{k}{k} 的滤波器大小扩大到了 $k_e = k + (k-1)(r-1)$ 而无需增加参数量或计算量。因此，它提供了一种有效的机制来控制感受野，并找到精确定位（小感受野）与上下文同化（大感受野）之间的最佳平衡。我们已经成功地尝试了这种技术：我们的 DeepLab-LargeFOV 模型变体 \cite{chen2014semantic} 在 VGG-16 的 `fc6' 层中使用了 $r=12$ 的空洞卷积，显著地提升了性能，详见第~\ref{sec:experiments}~章。
 
-Turning to implementation aspects, 
-there are two efficient ways to  perform atrous convolution. The first
-is to implicitly upsample the filters by inserting holes (zeros), or
-equivalently sparsely sample the input feature maps \cite{holschneider1989real}.
-We implemented this in our earlier work \cite{papandreou2014untangling,
- chen2014semantic}, followed by \cite{yu2015multi}, within the Caffe framework
-\cite{jia2014caffe} by adding to the \textsl{im2col} function (it extracts
-vectorized patches from multi-channel feature maps) the option to sparsely
-sample the underlying feature maps. The second method, originally proposed by
-\cite{shensa1992discrete} and used in \cite{giusti2013fast, sermanet2013overfeat}
-is to subsample the input feature map by a factor equal to the atrous
-convolution rate $r$, deinterlacing it to produce $r^2$ reduced resolution maps,
-one for each of the $\by{r}{r}$ possible shifts. This is followed by applying
-standard convolution to these intermediate feature maps and reinterlacing them
-to the original image resolution. By reducing atrous convolution into regular
-convolution, it allows us to use off-the-shelf highly optimized convolution
-routines. We have implemented the second approach into the TensorFlow framework
-\cite{abadi2016tensorflow}.
+在实现方面，有两种有效的方法来实现空洞卷积。第一种是通过插入孔（0）来隐式地对滤波器进行上采样，或者等效地稀疏地对输入特征图进行采样 \cite{holschneider1989real}。我们在早期的工作中实现了这个 \cite{papandreou2014untangling, chen2014semantic}。之后，Caffe 框架 \cite{jia2014caffe} 给稀疏采样过程添加了 \textsl{im2col} 函数（它从多通道特征图中抽取向量化的像素）\cite{yu2015multi}。第二种方法是在 \cite{shensa1992discrete} 中提出，并在 \cite{giusti2013fast, sermanet2013overfeat} 中使用的。它对输入特征图进行子采样，其采样因子为空洞卷积的 $r$，产生了降低 $r^2$ 分辨率的特征图，每一个对应原图中的 \by{r}{r} 的可能偏移。然后将标准卷积应用于这些中间特征图并将它们重新偏移出原始图像分辨率。通过将空洞卷积减少为常规卷积，它允许我们使用现成的高度优化的卷积框架。我们已经在 TensorFlow 框架中实现了第二种方法 \cite{abadi2016tensorflow}。
 
-%% When applying networks designed for image classification in a fully
-%% convolutional fashion for dense prediction tasks, one converts the last fully
-%% connected layers into convolutional ones \cite{long2014fully}. This implies
-%% that the network spends a much larger fraction of computation in its last
-%% few layers, making them the computational bottleneck during both training
-%% and evaluation. We have found that we can significantly accelerate a fully
-%% convolutional version of the VGG-16 network and at the same time reduce its
-%% memory footprint by making two key changes: (1) Thinning the activation maps
-%% in the last two hidden layers by a factor of 4, by retaining a random subset
-%% of 1,024 out of the original 4,096 filters. (2) Reducing the filter size of
-%% the first fully connected layer down to \by{3}{3} (or \by{4}{4}) by
-%% subsampling the original \by{7}{7} filters. These changes significantly
-%% increase the computational efficiency of our model.
+\subsection{使用空洞空间金字塔池化的多尺度图像表示}
 
-\subsection{Multiscale Image Representations using Atrous Spatial Pyramid Pooling}
+DCNNs 已经表现出显著的隐式表达比例变化的能力，只需在包含不同大小的物体的数据集上进行训练即可。尽管如此，明确物体的大小规模可以提高 DCNNs 处理大型和小型物体的能力 \cite{papandreou2014untangling}。
 
-DCNNs have shown a remarkable
-ability to implicitly represent scale, simply by being trained on datasets that
-contain objects of varying size. Still, explicitly accounting for object scale
-can improve the DCNN's ability to successfully handle both
-large and small objects \cite{papandreou2014untangling}.
+我们已经尝试了两种处理语义分割中的尺度可变性的方法。第一种相当于标准的多尺度处理 \cite{chen2015attention, kokkinos2016pushing}。我们使用共享参数的并行 DCNNs 从多个重新缩放版本的图像数据集中提取 DCNN 得分图（我们使用了 3 个数据集）。为了产生最终结果，我们将并行DCNN分支的特征映射双线性插值到原始图像分辨率并融合它们，通过在每个位置获取不同尺度上的最大响应。在训练与测试阶段我们都是这么做的。多尺度处理显着提高了性能，但代价是在 DCNNs 的所有层上都要计算特征响应以用于多种输入规模。
 
-We have experimented with two approaches to handling
- scale variability in semantic segmentation.
-The first approach amounts to standard multiscale
-processing \cite{chen2015attention, kokkinos2016pushing}. We extract DCNN score
-maps from multiple (three in our experiments) rescaled versions of the original
-image using parallel DCNN branches that share the same parameters. To produce
-the final result, we bilinearly interpolate the feature maps from the parallel
-DCNN branches to the original image resolution and fuse them, by taking at each
-position the maximum response across the different scales. We do this both
-during training and testing. Multiscale processing significantly improves
-performance, but at the cost of computing feature responses at all DCNN layers for
-multiple scales of input. 
-
-The second approach is inspired by the success of the R-CNN spatial pyramid pooling method of \cite{he2014spatial},
-which showed that regions of an arbitrary scale can be accurately and efficiently classified by resampling 
-convolutional features extracted at a single scale.
- We have implemented a variant of their scheme which uses multiple
-parallel atrous convolutional layers with different sampling rates. The features extracted for each sampling
-rate are further processed in separate branches and fused to generate the final
-result. The proposed ``atrous spatial pyramid pooling'' (DeepLab-ASPP) approach
-generalizes our DeepLab-LargeFOV variant and is illustrated in \figref{fig:aspp_fov}.
-
-%%  for the VGG-16 network, where ASPP is applied to the `pool5' features,
-%% delivering the input to layer `fc6'.
-%%  Another related approach has been successfully pursued by \cite{yu2015multi}: they
-%% employ a cascade of serially connected atrous convolutional layers with
-%% increasing rate parameters on top of the class score maps, which they show to be
-%% effective at capturing multiscale context.
+第二种方法的灵感来自于 \cite{he2014spatial} 的 R-CNN 空间金字塔池化方法的成功应用，其表明通过重新采样在单一尺度上提取的卷积特征，可以准确且有效地对任意尺度的区域进行分类。我们已经实现了他们方案的变体，其使用具有不同采样率的多个并行的空洞卷积层。针对每个采样率提取的特征在单独的分支中进一步处理并融合以生成最终结果。我们提出的 ``空洞空间金字塔池化''（DeepLab-ASPP）方法概括了 DeepLab-LargeFOV 变体，参见 \figref{fig:aspp_fov}。
 
 \begin{figure}[!t]
   \centering
@@ -186,55 +58,22 @@ generalizes our DeepLab-LargeFOV variant and is illustrated in \figref{fig:aspp_
     \includegraphics[height=4.5cm]{./fig/spm/aspp2.pdf} \\
   \end{tabular}
   }
-  \caption{Atrous Spatial Pyramid Pooling (ASPP). To classify the center pixel (orange),
-    ASPP exploits multi-scale features by employing multiple parallel filters with
-    different rates. The effective Field-Of-Views are shown in different colors.}
+  \caption{空洞空间金字塔池化（ASPP）。为了对中心像素（橙色）进行分类，ASPP通过采用具有不同 $r$ 的多个并行滤波器来利用多尺度特征。有效的视野以不同的颜色显示。}
   \label{fig:aspp_fov}
 \end{figure}
 
-\subsection{Structured Prediction with Fully-Connected Conditional Random Fields for Accurate Boundary Recovery}
+\subsection{基于全连通条件随机场的用于精确边界恢复的结构预测}
 \label{sec:boundary-recovery}
 
-A trade-off between localization accuracy and classification performance seems to be inherent in DCNNs:
-deeper models with multiple max-pooling layers have
-proven most successful in classification tasks, however the increased
-invariance and the large receptive fields of top-level nodes can only yield smooth responses.
-%\label{sec:local-chal}
-As illustrated in \figref{fig:score-maps}, DCNN score maps can
- predict the presence and rough position of objects but
-cannot really delineate their borders. 
+定位精度与分类精度之间的权衡似乎是 DCNNs 中固有的常态：具有多个最大池化层的深度模型已经证明在分类任务中表现最为出色，但顶层节点增加的不变性与大型的感受野只能产生平滑的特征响应。如 \figref{fig:score-maps} 中所示，DCNN 得分图可以预测物体的存在以及大致的位置，但是无法准确描述其边界。
 
-Previous work has pursued two directions to address this localization challenge.
-The first approach is to harness information from multiple layers in the
-convolutional network in order to better estimate the object boundaries
-\cite{hariharan2014hypercolumns, long2014fully, eigen2014predicting}. The
-second  is to employ a super-pixel representation, essentially
-delegating the localization task to a low-level segmentation method
-\cite{mostajabi2014feedforward}.
+以前的研究主要追求两方面来解决这一定位挑战。第一种方法是利用卷积网络中多个层的信息，以便更好地估计物体边界 \cite{hariharan2014hypercolumns, long2014fully, eigen2014predicting}。第二种方法是采用超分辨率表示，基本上将定位任务委派给了低级的分割方法 \cite{mostajabi2014feedforward}。
 
-%We have also
-%pursued a hybrid approach in which we combine the proposed fully-connected CRF
-%method with our own variant of multi-scale prediction. This combined approach
-%yields a further performance improvement, as discussed in
-%Section~\ref{sec:multiscale}.
-
-%\textbf{Fully-Connected Conditional Random Fields for Accurate Localization}
-%\label{sec:dense-crf}
-
-We pursue an alternative direction based on coupling the recognition
-capacity of DCNNs and the fine-grained localization accuracy of fully connected
-CRFs and show that it is remarkably successful in addressing the localization
-challenge, producing accurate semantic segmentation results and recovering
-object boundaries at a level of detail that is well beyond the reach of existing
-methods. This direction has been extended by several follow-up papers
-\cite{papandreou2015weakly, schwing2015fully, zheng2015conditional,
-  dai2015boxsup, noh2015learning, liu2015semantic, lin2015efficient,
-  chen2015attention, chen2015semantic}, since the first version of our work
-was published \cite{chen2014semantic}.
+我们结合 DCNNs 的识别能力和全连接 CRF 的细粒度定位精度来替代传统方法。实验表明，基于 DCNNs 与 全连接 CRF 的模型在解决定位问题上非常成功，产生了准确的语义分割结果，并且在一定程度上恢复了物体的边界，其细节处理远远超过了现有的方法。由于本工作第一个版本的发表 \cite{chen2014semantic}，之后的几篇论文也推广了这个方向 \cite{papandreou2015weakly, schwing2015fully, zheng2015conditional, dai2015boxsup, noh2015learning, liu2015semantic, lin2015efficient, chen2015attention, chen2015semantic}。
 
 \begin{figure}[t]
   \centering
-  \begin{tabular}{c c c c c}
+  \begin{tabular}{ccccc}
     \includegraphics[width=0.16\linewidth]{fig/mean_field_illustration/2007_007470.jpg} & 
     \includegraphics[width=0.16\linewidth]{fig/mean_field_illustration/Score_Class1_Itr0.pdf} &
     \includegraphics[width=0.16\linewidth]{fig/mean_field_illustration/Score_Class1_Itr1.pdf} & 
@@ -247,72 +86,23 @@ was published \cite{chen2014semantic}.
     \includegraphics[width=0.16\linewidth]{fig/mean_field_illustration/Belief_Class1_Itr10.pdf} \\
     {\tiny Image/G.T.} & {\tiny DCNN output} & {\tiny CRF Iteration 1} & {\tiny CRF Iteration 2} & {\tiny CRF Iteration 10} \\
   \end{tabular}
-  \caption{Score map (input before softmax function) and belief map (output of
-    softmax function) for Aeroplane. We show the score (1st row) and belief (2nd row)
-    maps after each mean field iteration. The output of last DCNN layer is used as
-    input to the mean field inference.}
+  \caption{预测为飞机的得分图（未经过 softmax）与 概率图 (经过 softmax)。我们在每次平均场迭代后记录得分（第一行）与概率（第二行）。最后一个 DCNN 层的输出用作平均场推断的输入。}
   \label{fig:score-maps}
 \end{figure}
 
-Traditionally, conditional random fields (CRFs) have been employed to smooth
-noisy segmentation maps \cite{rother2004grabcut, kohli2009robust}. Typically
-these models  couple neighboring nodes, favoring
-same-label assignments to spatially proximal pixels. Qualitatively, the
-primary function of these short-range CRFs is to clean up the spurious
-predictions of weak classifiers built on top of local hand-engineered features.
+传统上，条件随机场（CRF）已用于平滑噪声分割图 \cite{rother2004grabcut, kohli2009robust}。通常，这些模型将相邻节点结合，有利于相同标签分配到空间上临近的像素。定性地说，这些短距离的 CRFs 是为了清理人工特征构建的弱分类器所产生的虚假预测。
 
-Compared to these weaker classifiers, modern DCNN architectures such as
-the one we use in this work produce score maps and semantic label
-predictions which are qualitatively different. As illustrated in
-\figref{fig:score-maps}, the score maps are typically quite smooth and
-produce homogeneous classification results. In this regime, using short-range
-CRFs can be detrimental, as our goal should be to recover detailed local
-structure rather than further smooth it. Using contrast-sensitive potentials
-\cite{rother2004grabcut} in conjunction to local-range CRFs can potentially
-improve localization but still miss thin-structures and typically requires
-solving an expensive discrete optimization problem.
+与传统的弱分类器相比，现代 DCNN 结构（例如我们在此工作中使用的结构）产生的得分图与语义标签预测有着质的飞跃。如 \figref{fig:score-maps} 所示，得分图通常十分平滑，且产生同质分类结果。在这种情况下，使用短程的 CRFs 可能是有害的，因为我们的目标是恢复详细的分类结果而非进一步地平滑它。结合对比敏感势能 \cite{rother2004grabcut} 与局部范围的 CRFs，可以潜在地改善定位，但依然缺少轻量结构，通常需要解决更难的离散优化问题。
 
-To overcome these limitations of short-range CRFs, we integrate into our system
-the fully connected CRF model of \cite{krahenbuhl2011efficient}. The model
-employs the energy function
+为了克服短程 CRFs 的这些限制，我们将全连接的 CRFs 模型 \cite{krahenbuhl2011efficient} 整合进来。该模型采用能量函数
 \begin{align}
   E(\boldsymbol{x}) = \sum_i \theta_i(x_i) + \sum_{ij} \theta_{ij}(x_i, x_j)
 \end{align}
-where $\boldsymbol{x}$ is the label assignment for pixels. We use as unary
-potential $\theta_i(x_i) = - \log P(x_i)$, where $P(x_i)$ is the label
-assignment probability at pixel $i$ as computed by a DCNN. The pairwise
-potential has a form that allows for efficient inference while using a fully-connected graph, i.e.
-when  connecting 
-all pairs of image pixels, $i,j$. In particular, as in \cite{krahenbuhl2011efficient},  we use the following expression:
+其中 $\boldsymbol{x}$ 是像素的标签。我们使用 DCNN 计算出的一元势能 $\theta_i(x_i) = - \log P(x_i)$，其中 $P(x_i)$ 是像素标签概率。成对势能允许在使用全连通图时，即在连接所有图像像素对 $i,j$ 时进行有效的推断。我们引用 \cite{krahenbuhl2011efficient}，将其表达为以下形式：
 \begin{gather}
- \hspace{-.2cm}\theta_{ij}(x_i, x_j) \!=\! \mu(x_i,x_j)\!\left[w_1 \exp \Big(\!-\!\frac{||p_i-p_j||^2}{2\sigma_\alpha^2} \!-\!\frac{||I_i-I_j||^2}{2\sigma_\beta^2}\! \Big)\right. \nonumber\\
-\left. + w_2 \exp \Big(-\frac{||p_i-p_j||^2}{2\sigma_\gamma^2}\Big)\right]\label{eq:fully_crf}
+  \hspace{-.2cm}\theta_{ij}(x_i, x_j) \!=\! \mu(x_i,x_j)\!\left[w_1 \exp \Big(\!-\!\frac{||p_i-p_j||^2}{2\sigma_\alpha^2} \!-\!\frac{||I_i-I_j||^2}{2\sigma_\beta^2}\! \Big)\right. \nonumber\\
+  \left. + w_2 \exp \Big(-\frac{||p_i-p_j||^2}{2\sigma_\gamma^2}\Big)\right]\label{eq:fully_crf}
 \end{gather}
-where
-$\mu(x_i,x_j)= 1 \text{ if } x_i \neq x_j$, and zero otherwise, which, as in the Potts model, means that only nodes with distinct labels are penalized.  The remaining expression uses two Gaussian kernels in different feature spaces; the first, `bilateral' kernel
-depends on both pixel positions (denoted as $p$) and
-RGB color (denoted as $I$), and the second kernel only depends on pixel
-positions. The hyper parameters $\sigma_\alpha$, $\sigma_\beta$ and
-$\sigma_\gamma$ control the scale of Gaussian kernels. The  first kernel forces pixels with similar color and position to have similar labels, while the second kernel only considers spatial proximity when enforcing smoothness. 
+其中，当 $x_i \neq x_j$ 时 $\mu(x_i,x_j)= 1$，$x_i = x_j$ 时，$\mu(x_i, x_j)=0$，在 Potts 模型中，这表示只有具有不同标签节点才会受到惩罚。其他表达式在不同的特征空间中使用两个不同的高斯核; 第一个``双边''核取决于像素位置（表示为$ p $）和 RGB 颜色（表示为$ I $），第二个仅取决于像素位置。超参数 $\sigma_\alpha, \sigma_\beta, \sigma_\gamma$ 控制了高斯核的缩放比例。第一个核强制那些有相似颜色和位置的像素有相似的标签，而第二个核仅在强制平滑时考虑空间接近度。
 
-% labels among pixels 
-%when 
-% (Potts model).
-%Each Gaussian kernel $k^m$ depends on features (denoted as
-%$\boldsymbol{f}$) extracted for pixel $i$ and $j$ and is weighted by
-%parameter $w_m$. Specifically, we adopt bilateral position and color kernels
-%\begin{align}
-%  \label{eq:fully_crf}
-%  w_1 \exp \Big(-\frac{||p_i-p_j||^2}{2\sigma_\alpha^2} -\frac{||I_i-I_j||^2}{2\sigma_\beta^2} \Big) \nonumber \\
-%  + w_2 \exp \Big(-\frac{||p_i-p_j||^2}{2\sigma_\gamma^2}\Big)
-%\end{align}
-%where the first kernel 
-
-Crucially, this model is amenable to efficient approximate probabilistic
-inference \cite{krahenbuhl2011efficient}. The message passing updates under a
-fully decomposable mean field approximation $b(\boldsymbol{x}) = \prod_i
-b_i(x_i)$ can be expressed as Gaussian convolutions in bilateral
-space. High-dimensional filtering algorithms \cite{adams2010fast}
-significantly speed-up this computation resulting in an algorithm that is very
-fast in practice, requiring less that 0.5 sec on average for Pascal VOC images using the
-publicly available implementation of \cite{krahenbuhl2011efficient}.
+值得注意的是，这个模型适用于有效的近似概率推理 \cite{krahenbuhl2011efficient}。在完全可分解的平均场近似值 $b(\boldsymbol{x}) = \prod_i b_i(x_i)$ 下传递更新的消息可以表示为双边空间中的高斯卷积。高维滤波算法 \cite{adams2010fast} 显著加快了这一计算速度，从而使算法在实践工程中非常快。当使用开源的 \cite{krahenbuhl2011efficient} 时，Pascal VOC 数据集中的图像平均推断时间不到 0.5 秒。
